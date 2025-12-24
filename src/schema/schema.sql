@@ -1,0 +1,18 @@
+CREATE TABLE urls (
+    id SERIAL PRIMARY KEY,
+    short_code VARCHAR(30) UNIQUE NOT NULL,
+    long_url TEXT NOT NULL,
+    click_count INT DEFAULT 0,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE analytics (
+    id SERIAL PRIMARY KEY,
+    url_id INT REFERENCES urls (id) ON DELETE CASCADE,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    referer TEXT,
+    clicked_at TIMESTAMP DEFAULT NOW()
+);
