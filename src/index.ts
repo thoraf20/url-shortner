@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import v1Router from "./routes"
 import { dbClient } from "./db/config";
 import { errorHandler } from "./middleware/error";
+import "./queues/analyticsQueue"; // Initialize worker
 
 require("dotenv").config();
 

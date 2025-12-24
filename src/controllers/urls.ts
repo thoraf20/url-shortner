@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { nanoid } from "nanoid";
 import { dbClient } from "../db/config";
 import { redisClient } from "../db/redis";
+import { analyticsQueue } from "../queues/analyticsQueue";
 
 export const generateShortUrl = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -34,7 +35,7 @@ export const generateShortUrl = async (req: Request, res: Response, next: NextFu
       : 7 * 24 * 60 * 60;
 
     if (ttl > 0) {
-      await redisClient.set(cacheKey, longUrl, "EX", ttl);
+      await redisClient.set(cacheKey, JSON.stringify(rows[0]), "EX", ttl);
     }
 
     res.status(201).json({
@@ -52,9 +53,19 @@ export const redirectToLongUrl = async (req: Request, res: Response, next: NextF
     const { shortCode } = req.params;
     const cacheKey = `url:${shortCode}`;
 
-    const cachedUrl = await redisClient.get(cacheKey);
-    if (cachedUrl) {
-      res.redirect(cachedUrl); 
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      const url = JSON.parse(cachedData);
+      
+      // Offload analytics to background job
+      analyticsQueue.add("log-analytics", {
+        urlId: url.id,
+        ip: req.ip || "",
+        userAgent: req.headers["user-agent"] || "",
+        referer: req.headers["referer"] || "",
+      });
+
+      res.redirect(url.long_url); 
       return; 
     }
 
@@ -80,15 +91,16 @@ export const redirectToLongUrl = async (req: Request, res: Response, next: NextF
       : 7 * 24 * 60 * 60;
 
     if (ttl > 0) {
-      await redisClient.set(cacheKey, url.long_url, "EX", ttl);
+      await redisClient.set(cacheKey, JSON.stringify(url), "EX", ttl);
     }
 
-    dbClient.query("UPDATE urls SET click_count = click_count + 1 WHERE id = $1", [url.id]);
-
-    dbClient.query(
-      "INSERT INTO analytics (url_id, ip_address, user_agent, referer) VALUES ($1, $2, $3, $4)",
-      [url.id, req.ip, req.headers["user-agent"], req.headers["referer"]]
-    );
+    // Offload analytics to background job
+    analyticsQueue.add("log-analytics", {
+      urlId: url.id,
+      ip: req.ip || "",
+      userAgent: req.headers["user-agent"] || "",
+      referer: req.headers["referer"] || "",
+    });
 
     res.redirect(url.long_url);
   } catch (error) {
