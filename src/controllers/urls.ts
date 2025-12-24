@@ -3,10 +3,12 @@ import { nanoid } from "nanoid";
 import { dbClient } from "../db/config";
 import { redisClient } from "../db/redis";
 import { analyticsQueue } from "../queues/analyticsQueue";
+import { AuthRequest } from "../middleware/auth";
 
-export const generateShortUrl = async (req: Request, res: Response, next: NextFunction) => {
+export const generateShortUrl = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     let { longUrl, customAlias, expiresAt } = req.body;
+    const userId = req.user?.userId || null;
     
     if (customAlias) {
       const { rows } = await dbClient.query(
@@ -25,8 +27,8 @@ export const generateShortUrl = async (req: Request, res: Response, next: NextFu
     }
 
     const { rows } = await dbClient.query(
-      "INSERT INTO urls (short_code, long_url, expires_at) VALUES ($1, $2, $3) RETURNING *",
-      [shortCode, longUrl, expiresAt]
+      "INSERT INTO urls (short_code, long_url, expires_at, user_id) VALUES ($1, $2, $3, $4) RETURNING *",
+      [shortCode, longUrl, expiresAt, userId]
     );
 
     const cacheKey = `url:${shortCode}`;
@@ -57,7 +59,6 @@ export const redirectToLongUrl = async (req: Request, res: Response, next: NextF
     if (cachedData) {
       const url = JSON.parse(cachedData);
       
-      // Offload analytics to background job
       analyticsQueue.add("log-analytics", {
         urlId: url.id,
         ip: req.ip || "",
@@ -94,7 +95,6 @@ export const redirectToLongUrl = async (req: Request, res: Response, next: NextF
       await redisClient.set(cacheKey, JSON.stringify(url), "EX", ttl);
     }
 
-    // Offload analytics to background job
     analyticsQueue.add("log-analytics", {
       urlId: url.id,
       ip: req.ip || "",
@@ -107,3 +107,23 @@ export const redirectToLongUrl = async (req: Request, res: Response, next: NextF
     next(error);
   }
 }
+
+export const getUserUrls = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ error: "Authentication required" });
+      return;
+    }
+
+    const { rows } = await dbClient.query(
+      "SELECT id, short_code, long_url, click_count, expires_at, created_at FROM urls WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100",
+      [userId]
+    );
+
+    res.status(200).json({ urls: rows });
+  } catch (error) {
+    next(error);
+  }
+};

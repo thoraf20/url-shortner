@@ -1,10 +1,18 @@
 -- Active: 1766071488412@@127.0.0.1@5432@urls
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE urls (
     id SERIAL PRIMARY KEY,
     short_code VARCHAR(30) UNIQUE NOT NULL,
     long_url TEXT NOT NULL,
     click_count INT DEFAULT 0,
     expires_at TIMESTAMP,
+    user_id INT REFERENCES users (id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
