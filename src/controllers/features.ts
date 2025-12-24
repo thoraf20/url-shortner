@@ -60,7 +60,6 @@ export const generateQRCode = async (req: Request, res: Response, next: NextFunc
 
     const qrCodeDataUrl = await QRCode.toDataURL(shortUrl);
     
-    // We can return the data URL or stream the image. Data URL is easier for frontend.
     res.status(200).json({ qrCode: qrCodeDataUrl });
   } catch (error) {
     next(error);
