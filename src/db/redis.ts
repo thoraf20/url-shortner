@@ -1,4 +1,5 @@
 import Redis from "ioredis";
+import logger from "../utils/logger";
 require("dotenv").config();
 
 const redis = new Redis({
@@ -7,7 +8,8 @@ const redis = new Redis({
   password: process.env.REDIS_PASSWORD || undefined,
 });
 
-redis.on("error", (err) => console.error("Redis Client Error", err));
-redis.on("connect", () => console.log("Redis Client Connected"));
+redis.on("error", (err) => logger.error({ err }, "Redis Client Error"));
+redis.on("connect", () => logger.info("Redis Client Connected"));
 
 export const redisClient = redis;
+

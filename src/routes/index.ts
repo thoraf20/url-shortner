@@ -3,7 +3,8 @@ import { generateShortUrl, redirectToLongUrl } from "../controllers/urls";
 import { getUrlAnalytics, generateQRCode } from "../controllers/features";
 import { validate } from "../middleware/validator";
 import { createUrlSchema, shortCodeSchema } from "../schema/validation/urlSchema";
-import { shortenLimiter } from "../index";
+import { shortenLimiter } from "../middleware/rateLimiter";
+
 
 const router = Router();
 

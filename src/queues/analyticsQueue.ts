@@ -1,6 +1,7 @@
 import { Queue, Worker, Job } from "bullmq";
 import { redisClient } from "../db/redis";
 import { dbClient } from "../db/config";
+import logger from "../utils/logger";
 
 const QUEUE_NAME = "analytics";
 
@@ -30,9 +31,9 @@ const worker = new Worker(
         [urlId, ip, userAgent, referer]
       );
 
-      console.log(`[Worker] Processed analytics for URL ID ${urlId}`);
+      logger.info({ urlId }, `[Worker] Processed analytics for URL ID ${urlId}`);
     } catch (error) {
-      console.error(`[Worker] Failed to process analytics for URL ID ${urlId}:`, error);
+      logger.error({ error, urlId }, `[Worker] Failed to process analytics for URL ID ${urlId}`);
       throw error;
     }
   },
@@ -40,5 +41,6 @@ const worker = new Worker(
 );
 
 worker.on("failed", (job, err) => {
-  console.error(`[Worker] Job ${job?.id} failed:`, err);
+  logger.error({ job: job?.id, err }, `[Worker] Job ${job?.id} failed`);
 });
+
