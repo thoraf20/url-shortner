@@ -18,19 +18,40 @@ export const getUrlAnalytics = async (req: Request, res: Response, next: NextFun
 
     const url = urlRows[0];
 
-    const { rows: analyticsRows } = await dbClient.query(
-      "SELECT ip_address, user_agent, referer, clicked_at FROM analytics WHERE url_id = $1 ORDER BY clicked_at DESC LIMIT 100",
-      [url.id]
-    );
+    const [clicks, browsers, os, devices] = await Promise.all([
+      dbClient.query(
+        "SELECT ip_address, browser_name, os_name, device_type, referer, clicked_at FROM analytics WHERE url_id = $1 ORDER BY clicked_at DESC LIMIT 50",
+        [url.id]
+      ),
+      dbClient.query(
+        "SELECT browser_name as name, COUNT(*) as count FROM analytics WHERE url_id = $1 GROUP BY browser_name ORDER BY count DESC LIMIT 5",
+        [url.id]
+      ),
+      dbClient.query(
+        "SELECT os_name as name, COUNT(*) as count FROM analytics WHERE url_id = $1 GROUP BY os_name ORDER BY count DESC LIMIT 5",
+        [url.id]
+      ),
+      dbClient.query(
+        "SELECT device_type as name, COUNT(*) as count FROM analytics WHERE url_id = $1 GROUP BY device_type ORDER BY count DESC",
+        [url.id]
+      )
+    ]);
 
     res.status(200).json({
       url,
-      recentClicks: analyticsRows
+      summary: {
+        totalClicks: parseInt(url.click_count),
+        browsers: browsers.rows,
+        os: os.rows,
+        devices: devices.rows
+      },
+      recentClicks: clicks.rows
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 export const generateQRCode = async (req: Request, res: Response, next: NextFunction) => {
   try {

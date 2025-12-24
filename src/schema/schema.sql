@@ -22,6 +22,11 @@ CREATE TABLE analytics (
     url_id INT REFERENCES urls (id) ON DELETE CASCADE,
     ip_address VARCHAR(45),
     user_agent TEXT,
+    browser_name VARCHAR(50),
+    browser_version VARCHAR(50),
+    os_name VARCHAR(50),
+    os_version VARCHAR(50),
+    device_type VARCHAR(50),
     referer TEXT,
     clicked_at TIMESTAMP DEFAULT NOW()
 );

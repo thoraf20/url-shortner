@@ -144,9 +144,10 @@ router.get("/shorten/:shortCode", validate(shortCodeSchema), redirectToLongUrl);
  *           type: string
  *     responses:
  *       200:
- *         description: Analytics data.
+ *         description: Detailed analytics including summary statistics (browsers, OS, devices) and recent clicks.
  */
 router.get("/shorten/:shortCode/analytics", validate(shortCodeSchema), getUrlAnalytics);
+
 
 /**
  * @openapi
