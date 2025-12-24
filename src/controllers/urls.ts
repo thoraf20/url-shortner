@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { nanoid } from "nanoid";
 import { dbClient } from "../db/config";
+import { redisClient } from "../db/redis";
 
 export const generateShortUrl = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -12,7 +13,7 @@ export const generateShortUrl = async (req: Request, res: Response, next: NextFu
         [customAlias]
       );
       if (rows.length && rows[0].expires_at > new Date()) {
-        res.status(409).json({ error: "Custom alias already in use and active" });
+        res.status(409).json({ error: `Custom alias ${customAlias} already in use and active` });
         return;
       }
     }
@@ -27,6 +28,15 @@ export const generateShortUrl = async (req: Request, res: Response, next: NextFu
       [shortCode, longUrl, expiresAt]
     );
 
+    const cacheKey = `url:${shortCode}`;
+    const ttl = expiresAt 
+      ? Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)
+      : 7 * 24 * 60 * 60;
+
+    if (ttl > 0) {
+      await redisClient.set(cacheKey, longUrl, "EX", ttl);
+    }
+
     res.status(201).json({
       shortUrl: `${process.env.API_BASE_URL}/v1/shorten/${shortCode}`,
       shortCode: shortCode,
@@ -40,6 +50,13 @@ export const generateShortUrl = async (req: Request, res: Response, next: NextFu
 export const redirectToLongUrl = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { shortCode } = req.params;
+    const cacheKey = `url:${shortCode}`;
+
+    const cachedUrl = await redisClient.get(cacheKey);
+    if (cachedUrl) {
+      res.redirect(cachedUrl); 
+      return; 
+    }
 
     const { rows } = await dbClient.query(
       "SELECT * FROM urls WHERE short_code = $1",
@@ -56,6 +73,14 @@ export const redirectToLongUrl = async (req: Request, res: Response, next: NextF
     if (url.expires_at && new Date(url.expires_at) < new Date()) {
       res.status(410).json({ error: "This link has expired" });
       return;
+    }
+
+    const ttl = url.expires_at 
+      ? Math.floor((new Date(url.expires_at).getTime() - Date.now()) / 1000)
+      : 7 * 24 * 60 * 60;
+
+    if (ttl > 0) {
+      await redisClient.set(cacheKey, url.long_url, "EX", ttl);
     }
 
     dbClient.query("UPDATE urls SET click_count = click_count + 1 WHERE id = $1", [url.id]);

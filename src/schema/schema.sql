@@ -1,3 +1,4 @@
+-- Active: 1766071488412@@127.0.0.1@5432@urls
 CREATE TABLE urls (
     id SERIAL PRIMARY KEY,
     short_code VARCHAR(30) UNIQUE NOT NULL,
