@@ -2,6 +2,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import v1Router from "./routes"
 import { dbClient } from "./db/config";
+import { errorHandler } from "./middleware/error";
 
 require("dotenv").config();
 
@@ -13,10 +14,10 @@ const limiter = rateLimit({
 
 const app = express();
 const port = process.env.PORT || 3000
-const router = express.Router()
 app.use(express.json());
 
 app.use("/v1", limiter, v1Router);
+app.use(errorHandler);
 
 dbClient
   .connect()
