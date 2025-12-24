@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import logger from "../utils/logger";
 require("dotenv").config();
 
 const pool = new Pool({
@@ -10,3 +11,8 @@ const pool = new Pool({
 });
 
 export const dbClient = pool;
+
+export const closeDb = async () => {
+  logger.info("Closing database pool...");
+  await pool.end();
+};

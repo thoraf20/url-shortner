@@ -13,3 +13,9 @@ redis.on("connect", () => logger.info("Redis Client Connected"));
 
 export const redisClient = redis;
 
+export const closeRedis = async () => {
+  logger.info("Closing Redis connection...");
+  await redis.quit();
+};
+
+

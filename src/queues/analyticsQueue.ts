@@ -44,3 +44,9 @@ worker.on("failed", (job, err) => {
   logger.error({ job: job?.id, err }, `[Worker] Job ${job?.id} failed`);
 });
 
+export const stopAnalyticsWorker = async () => {
+  logger.info("Stopping analytics worker...");
+  await worker.close();
+};
+
+
